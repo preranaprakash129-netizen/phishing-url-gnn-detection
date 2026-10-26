@@ -17,8 +17,16 @@ jobs:
         run: |
           mkdir -p data/feed
           STAMP=$(date -u +%Y%m%d_%H%M)
-          curl -fsS --max-time 60 -A "academic-phishing-research" https://openphish.com/feed.txt -o "data/feed/openphish_${STAMP}.txt"
-          wc -l "data/feed/openphish_${STAMP}.txt"
+          OUT="data/feed/openphish_${STAMP}.txt"
+          curl -fsSL --max-time 60 -A "academic-phishing-research" https://openphish.com/feed.txt -o "$OUT"
+          LINES=$(wc -l < "$OUT")
+          BAD=$(grep -v '^$' "$OUT" | grep -vc '^https\?://' || true)
+          echo "lines=$LINES, non-URL lines=$BAD"
+          if [ "$LINES" -lt 20 ] || [ "$BAD" -gt 0 ]; then
+            echo "Feed looks invalid (not a URL list); not saving."
+            rm -f "$OUT"
+            exit 1
+          fi
       - name: Commit snapshot
         run: |
           git config user.name "feed-bot"
